@@ -1,11 +1,5 @@
-//
-//  ContentView.swift
-//  TravelSchedule
-//
-//  Created by Admin on 02/12/2025.
-//
-
 import SwiftUI
+import OpenAPIURLSession
 
 struct ContentView: View {
     var body: some View {
@@ -16,6 +10,16 @@ struct ContentView: View {
             Text("Hello, world!")
         }
         .padding()
+        .onAppear {
+            testFetchStations()
+            testFetchSegments()
+            testFetchStationSchedule()
+            testFetchRouteStations()
+            testFetchNearestCity()
+            testFetchCarrier()
+            testFetchAllStations()
+            testFetchCopyright()
+        }
     }
 }
 
