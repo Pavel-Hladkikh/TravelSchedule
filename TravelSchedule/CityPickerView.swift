@@ -25,7 +25,10 @@ struct CityPickerView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+
                 searchField
+                    .padding(.horizontal, 16)
+                    .padding(.top, 2)
 
                 StateContentView(
                     state: vm.state,
@@ -38,18 +41,32 @@ struct CityPickerView: View {
                         } label: {
                             HStack {
                                 Text(city)
+                                    .font(.system(size: 17, weight: .regular))
+                                    .tracking(-0.41)
                                     .foregroundStyle(AppColors.textPrimary)
+                                    .lineLimit(1)
+
                                 Spacer()
+
                                 Image(systemName: "chevron.right")
-                                    .foregroundStyle(AppColors.cityChevron)
+                                    .foregroundStyle(AppColors.textPrimary)
                             }
+                            .frame(height: 60)
+                            .contentShape(Rectangle())
                         }
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(
+                            EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16)
+                        )
                         .listRowBackground(AppColors.background)
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
                     .background(AppColors.background)
                 }
+                .padding(.top, 16)
+
+                Spacer(minLength: 0)
             }
             .background(AppColors.background)
             .navigationBarTitleDisplayMode(.inline)
@@ -80,8 +97,11 @@ struct CityPickerView: View {
             TextField(
                 "",
                 text: $vm.query,
-                prompt: Text("Введите запрос").foregroundStyle(AppColors.searchPlaceholder)
+                prompt: Text("Введите запрос")
+                    .foregroundStyle(AppColors.searchPlaceholder)
             )
+            .font(.system(size: 17, weight: .regular))
+            .tracking(-0.41)
             .foregroundStyle(AppColors.textPrimary)
             .textInputAutocapitalization(.sentences)
             .autocorrectionDisabled()
@@ -97,7 +117,5 @@ struct CityPickerView: View {
         .frame(height: 36)
         .background(AppColors.searchFieldBackground)
         .clipShape(RoundedRectangle(cornerRadius: 18))
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
     }
 }

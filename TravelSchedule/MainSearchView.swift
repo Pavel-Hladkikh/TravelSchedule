@@ -22,7 +22,6 @@ struct MainSearchView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-
             RouteCard(
                 fromText: vm.fromText,
                 toText: vm.toText,
@@ -38,14 +37,12 @@ struct MainSearchView: View {
                     showCarriers = true
                 } label: {
                     Text("Найти")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(size: 17, weight: .bold))
                         .foregroundStyle(.white)
-                        .frame(height: 60)
-                        .frame(maxWidth: .infinity)
+                        .frame(width: 150, height: 60)
                         .background(AppColors.brandBlue)
                         .clipShape(RoundedRectangle(cornerRadius: 20))
                 }
-                .padding(.horizontal, 96)
                 .padding(.top, 16)
             }
 

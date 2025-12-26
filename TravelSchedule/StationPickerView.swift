@@ -26,7 +26,6 @@ struct StationPickerView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-
                 searchField
                     .padding(.horizontal, 16)
                     .padding(.top, 2)
@@ -43,12 +42,23 @@ struct StationPickerView: View {
                             } label: {
                                 HStack {
                                     Text(station.title)
+                                        .font(.system(size: 17, weight: .regular))
+                                        .tracking(-0.41)
                                         .foregroundStyle(AppColors.textPrimary)
+                                        .lineLimit(1)
+
                                     Spacer()
+
                                     Image(systemName: "chevron.right")
-                                        .foregroundStyle(AppColors.stationChevron)
+                                        .foregroundStyle(AppColors.textPrimary)
                                 }
+                                .frame(height: 60)
+                                .contentShape(Rectangle())
                             }
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(
+                                EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16)
+                            )
                             .listRowBackground(AppColors.background)
                         }
                     }
@@ -69,6 +79,7 @@ struct StationPickerView: View {
                         .font(.system(size: 17, weight: .bold))
                         .foregroundStyle(AppColors.textPrimary)
                 }
+
                 ToolbarItem(placement: .topBarLeading) {
                     Button(action: { dismiss() }) {
                         Image(systemName: "chevron.left")
@@ -91,9 +102,9 @@ struct StationPickerView: View {
                 text: $vm.query,
                 prompt: Text("Введите запрос")
                     .foregroundStyle(AppColors.searchPlaceholder)
-                    .font(.system(size: 17, weight: .regular))
             )
             .font(.system(size: 17, weight: .regular))
+            .tracking(-0.41)
             .foregroundStyle(AppColors.textPrimary)
 
             if !vm.query.isEmpty {

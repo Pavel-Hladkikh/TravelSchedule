@@ -1,4 +1,3 @@
-
 import SwiftUI
 import UIKit
 
@@ -39,14 +38,6 @@ enum AppColors {
     }
 
     static let clearIcon = Color(hex: 0xAEAFB4)
-
-    static var cityChevron: Color {
-        dynamic(lightHex: 0xAEB0B4, darkHex: 0xFFFFFF)
-    }
-
-    static var stationChevron: Color {
-        textPrimary
-    }
 
     private static func dynamic(lightHex: Int, darkHex: Int, darkAlpha: Double = 1) -> Color {
         Color(uiColor: UIColor { tc in

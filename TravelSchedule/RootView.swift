@@ -18,12 +18,20 @@ struct RootView: View {
                     TabView {
                         MainSearchView()
                             .tabItem {
-                                Image("tab_main").renderingMode(.template)
+                                Image("tab_main")
+                                    .renderingMode(.template)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 30, height: 30)
                             }
 
                         SettingsView()
                             .tabItem {
-                                Image(systemName: "gearshape.fill")
+                                Image("setting")
+                                    .renderingMode(.template)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 30, height: 30)
                             }
                     }
                     .tint(AppColors.tabTint)
