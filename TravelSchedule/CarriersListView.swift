@@ -4,22 +4,22 @@ import OpenAPIURLSession
 private let raspBaseURL = URL(string: "https://api.rasp.yandex-net.ru")!
 
 struct CarriersListView: View {
-
+    
     @Environment(\.dismiss) private var dismiss
-
+    
     private let fromTitle: String
     private let toTitle: String
-
+    
     @StateObject private var vm: CarriersListViewModel
-
+    
     @State private var isFiltersPresented = false
     @State private var filtersApplied = false
-
+    
     @State private var timeSelection: Set<DepartureInterval> = []
     @State private var showTransfers: Bool? = nil
-
-    @State private var isCarrierInfoPresented = false
-
+    
+    @State private var selectedCarrierRow: CarriersListViewModel.CarrierRow? = nil
+    
     init(
         fromTitle: String,
         toTitle: String,
@@ -29,13 +29,13 @@ struct CarriersListView: View {
     ) {
         self.fromTitle = fromTitle
         self.toTitle = toTitle
-
+        
         let client = Client(
             serverURL: raspBaseURL,
             transport: URLSessionTransport()
         )
         let service = SearchService(client: client, apikey: apiKey)
-
+        
         _vm = StateObject(
             wrappedValue: CarriersListViewModel(
                 searchService: service,
@@ -44,20 +44,20 @@ struct CarriersListView: View {
             )
         )
     }
-
+    
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
-
+                
                 VStack(spacing: 0) {
-
+                    
                     Text("\(fromTitle) → \(toTitle)")
                         .font(.system(size: 24, weight: .bold))
                         .foregroundStyle(AppColors.textPrimary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.top, 16)
                         .padding(.horizontal, 16)
-
+                    
                     StateContentView(
                         state: vm.state,
                         emptyMessage: "Вариантов нет"
@@ -66,7 +66,7 @@ struct CarriersListView: View {
                             LazyVStack(spacing: 8) {
                                 ForEach(vm.rows) { row in
                                     Button {
-                                        isCarrierInfoPresented = true
+                                        selectedCarrierRow = row
                                     } label: {
                                         carrierCard(row)
                                     }
@@ -80,7 +80,7 @@ struct CarriersListView: View {
                     .padding(.top, 16)
                 }
                 .background(AppColors.background)
-
+                
                 bottomButton
             }
             .toolbar(.hidden, for: .navigationBar)
@@ -102,11 +102,18 @@ struct CarriersListView: View {
                 }
             )
         }
-        .fullScreenCover(isPresented: $isCarrierInfoPresented) {
-            CarrierInfo()
+        .fullScreenCover(
+            isPresented: Binding(
+                get: { selectedCarrierRow != nil },
+                set: { if !$0 { selectedCarrierRow = nil } }
+            )
+        ) {
+            if let row = selectedCarrierRow {
+                CarrierInfo(row: row)
+            }
         }
     }
-
+    
     private var topBar: some View {
         HStack {
             Button { dismiss() } label: {
@@ -117,10 +124,9 @@ struct CarriersListView: View {
             }
             Spacer()
         }
-        .padding(.horizontal, 6)
         .background(AppColors.background)
     }
-
+    
     private var bottomButton: some View {
         VStack {
             Button { isFiltersPresented = true } label: {
@@ -128,7 +134,7 @@ struct CarriersListView: View {
                     Text("Уточнить время")
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(.white)
-
+                    
                     if filtersApplied {
                         Circle()
                             .fill(AppColors.indicatorRed)
@@ -141,31 +147,31 @@ struct CarriersListView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 20))
             }
             .padding(.horizontal, 16)
-            .padding(.bottom, 58)
+            .padding(.bottom, 24)
         }
     }
-
+    
     private func carrierCard(_ row: CarriersListViewModel.CarrierRow) -> some View {
         let cardText = Color(red: 26/255, green: 27/255, blue: 34/255)
-
+        
         return ZStack {
             RoundedRectangle(cornerRadius: 20)
                 .fill(AppColors.cardGray)
-
+            
             VStack(alignment: .leading, spacing: 0) {
-
+                
                 HStack(alignment: .top, spacing: 8) {
-
+                    
                     logoView(row.logoURL)
                         .frame(width: 38, height: 38)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                         .padding(.top, 14)
-
+                    
                     VStack(alignment: .leading, spacing: 2) {
                         Text(row.title)
                             .font(.system(size: 17))
                             .foregroundStyle(cardText)
-
+                        
                         if let subtitle = row.subtitle, !subtitle.isEmpty {
                             Text(subtitle)
                                 .font(.system(size: 12))
@@ -174,9 +180,9 @@ struct CarriersListView: View {
                         }
                     }
                     .padding(.top, 14)
-
+                    
                     Spacer()
-
+                    
                     if let date = row.dateText {
                         Text(date)
                             .font(.system(size: 12))
@@ -186,27 +192,27 @@ struct CarriersListView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-
+                
                 Spacer().frame(height: 18)
-
+                
                 HStack(spacing: 12) {
                     Text(row.departText ?? "--:--")
                         .font(.system(size: 17))
                         .foregroundStyle(cardText)
-
+                    
                     Rectangle()
                         .fill(AppColors.lineGray)
                         .frame(height: 1)
-
+                    
                     Text(row.durationText ?? "")
                         .font(.system(size: 12))
                         .foregroundStyle(cardText)
                         .lineLimit(1)
-
+                    
                     Rectangle()
                         .fill(AppColors.lineGray)
                         .frame(height: 1)
-
+                    
                     Text(row.arriveText ?? "--:--")
                         .font(.system(size: 17))
                         .foregroundStyle(cardText)
@@ -217,7 +223,7 @@ struct CarriersListView: View {
         }
         .frame(height: 104)
     }
-
+    
     @ViewBuilder
     private func logoView(_ url: URL?) -> some View {
         if let url {
