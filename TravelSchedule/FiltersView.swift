@@ -6,7 +6,7 @@ enum DepartureInterval: CaseIterable, Hashable {
     case day
     case evening
     case night
-
+    
     var title: String {
         switch self {
         case .morning: return "Утро 06:00 - 12:00"
@@ -15,7 +15,7 @@ enum DepartureInterval: CaseIterable, Hashable {
         case .night: return "Ночь 00:00 - 06:00"
         }
     }
-
+    
     // минуты от начала суток
     var range: ClosedRange<Int> {
         switch self {
@@ -28,14 +28,14 @@ enum DepartureInterval: CaseIterable, Hashable {
 }
 
 struct FiltersView: View {
-
+    
     @Environment(\.dismiss) private var dismiss
-
+    
     @State private var timeSelection: Set<DepartureInterval>
     @State private var showTransfers: Bool?
-
+    
     private let onApply: (Set<DepartureInterval>, Bool?) -> Void
-
+    
     init(
         timeSelection: Set<DepartureInterval>,
         showTransfers: Bool?,
@@ -45,14 +45,14 @@ struct FiltersView: View {
         _showTransfers = State(initialValue: showTransfers)
         self.onApply = onApply
     }
-
+    
     private var canApply: Bool {
         !timeSelection.isEmpty && showTransfers != nil
     }
-
+    
     var body: some View {
         VStack(spacing: 0) {
-
+            
             // топбар как у тебя
             HStack(spacing: 0) {
                 Button { dismiss() } label: {
@@ -66,15 +66,15 @@ struct FiltersView: View {
             .padding(.horizontal, 6)
             .frame(maxWidth: .infinity)
             .background(AppColors.background)
-
+            
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-
+                    
                     Text("Время отправления")
                         .font(.system(size: 24, weight: .bold))
                         .foregroundStyle(AppColors.textPrimary)
                         .padding(.top, 8)
-
+                    
                     VStack(spacing: 0) {
                         ForEach(DepartureInterval.allCases, id: \.self) { interval in
                             rowCheckbox(
@@ -86,12 +86,12 @@ struct FiltersView: View {
                         }
                     }
                     .padding(.top, 16)
-
+                    
                     Text("Показывать варианты с пересадками")
                         .font(.system(size: 24, weight: .bold))
                         .foregroundStyle(AppColors.textPrimary)
                         .padding(.top, 24)
-
+                    
                     VStack(spacing: 0) {
                         rowRadio(title: "Да", isSelected: showTransfers == true) {
                             showTransfers = true
@@ -101,7 +101,7 @@ struct FiltersView: View {
                         }
                     }
                     .padding(.top, 16)
-
+                    
                     Color.clear.frame(height: 24)
                 }
                 .padding(.horizontal, 16)
@@ -134,7 +134,7 @@ struct FiltersView: View {
             }
         }
     }
-
+    
     private func toggleTimeSelection(_ interval: DepartureInterval) {
         if timeSelection.contains(interval) {
             timeSelection.remove(interval)
@@ -142,15 +142,15 @@ struct FiltersView: View {
             timeSelection.insert(interval)
         }
     }
-
+    
     private func rowCheckbox(title: String, isSelected: Bool, onTap: @escaping () -> Void) -> some View {
         HStack {
             Text(title)
                 .font(.system(size: 17, weight: .regular))
                 .foregroundStyle(AppColors.textPrimary)
-
+            
             Spacer()
-
+            
             Image(systemName: isSelected ? "checkmark.square.fill" : "square")
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(AppColors.textPrimary)
@@ -159,15 +159,15 @@ struct FiltersView: View {
         .contentShape(Rectangle())
         .onTapGesture { onTap() }
     }
-
+    
     private func rowRadio(title: String, isSelected: Bool, onTap: @escaping () -> Void) -> some View {
         HStack {
             Text(title)
                 .font(.system(size: 17, weight: .regular))
                 .foregroundStyle(AppColors.textPrimary)
-
+            
             Spacer()
-
+            
             Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(AppColors.textPrimary)

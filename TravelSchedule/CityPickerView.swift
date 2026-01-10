@@ -4,32 +4,32 @@ import OpenAPIURLSession
 private let apiKey = "7828af98-e2dc-45df-95f7-12b6d39376ef"
 
 struct CityPickerView: View {
-
+    
     let onSelect: (String) -> Void
-
+    
     @Environment(\.dismiss) private var dismiss
     @StateObject private var vm: CityPickerViewModel
-
+    
     init(onSelect: @escaping (String) -> Void) {
         self.onSelect = onSelect
-
+        
         let client = Client(
             serverURL: URL(string: "https://api.rasp.yandex-net.ru")!,
             transport: URLSessionTransport()
         )
-
+        
         let service = AllStationsService(client: client, apikey: apiKey)
         _vm = StateObject(wrappedValue: CityPickerViewModel(allStationsService: service))
     }
-
+    
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-
+                
                 searchField
                     .padding(.horizontal, 16)
                     .padding(.top, 2)
-
+                
                 StateContentView(
                     state: vm.state,
                     emptyMessage: "Город не найден"
@@ -45,9 +45,9 @@ struct CityPickerView: View {
                                     .tracking(-0.41)
                                     .foregroundStyle(AppColors.textPrimary)
                                     .lineLimit(1)
-
+                                
                                 Spacer()
-
+                                
                                 Image(systemName: "chevron.right")
                                     .foregroundStyle(AppColors.textPrimary)
                             }
@@ -65,7 +65,7 @@ struct CityPickerView: View {
                     .background(AppColors.background)
                 }
                 .padding(.top, 16)
-
+                
                 Spacer(minLength: 0)
             }
             .background(AppColors.background)
@@ -76,7 +76,7 @@ struct CityPickerView: View {
                         .font(.system(size: 17, weight: .bold))
                         .foregroundStyle(AppColors.textPrimary)
                 }
-
+                
                 ToolbarItem(placement: .topBarLeading) {
                     Button { dismiss() } label: {
                         Image(systemName: "chevron.left")
@@ -88,12 +88,12 @@ struct CityPickerView: View {
         }
         .task { await vm.load() }
     }
-
+    
     private var searchField: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(AppColors.magnifierColor(isActive: !vm.query.isEmpty))
-
+            
             TextField(
                 "",
                 text: $vm.query,
@@ -105,7 +105,7 @@ struct CityPickerView: View {
             .foregroundStyle(AppColors.textPrimary)
             .textInputAutocapitalization(.sentences)
             .autocorrectionDisabled()
-
+            
             if !vm.query.isEmpty {
                 Button { vm.query = "" } label: {
                     Image(systemName: "xmark.circle.fill")
