@@ -1,9 +1,4 @@
 import SwiftUI
-import OpenAPIRuntime
-import OpenAPIURLSession
-
-private let apiKey = "7828af98-e2dc-45df-95f7-12b6d39376ef"
-private let raspBaseURL = URL(string: "https://api.rasp.yandex-net.ru")!
 
 struct MainSearchView: View {
     
@@ -14,6 +9,8 @@ struct MainSearchView: View {
     @State private var showStationPicker = false
     @State private var selectedCityTitle: String = ""
     @State private var showCarriers = false
+    
+    @State private var pendingOpenStationPicker = false
     
     enum Target {
         case from
@@ -53,20 +50,26 @@ struct MainSearchView: View {
             Spacer(minLength: 0)
         }
         .background(AppColors.background)
-        .fullScreenCover(isPresented: $showCityPicker) {
-            CityPickerView { city in
-                selectedCityTitle = city
-                showCityPicker = false
-                
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+        .fullScreenCover(
+            isPresented: $showCityPicker,
+            onDismiss: {
+                if pendingOpenStationPicker {
+                    pendingOpenStationPicker = false
                     showStationPicker = true
                 }
+            },
+            content: {
+                CityPickerView(apiClient: RaspAPI.shared) { city in
+                    selectedCityTitle = city
+                    pendingOpenStationPicker = true
+                    showCityPicker = false
+                }
             }
-        }
+        )
         .fullScreenCover(isPresented: $showStationPicker) {
             StationPickerView(
                 cityTitle: selectedCityTitle,
-                allStationsService: makeAllStationsService()
+                apiClient: RaspAPI.shared
             ) { item in
                 applyStationSelection(
                     stationTitle: item.title,
@@ -81,7 +84,7 @@ struct MainSearchView: View {
                 toTitle: vm.toText,
                 fromCode: vm.fromCode,
                 toCode: vm.toCode,
-                apiKey: apiKey
+                apiClient: RaspAPI.shared
             )
         }
     }
@@ -108,14 +111,6 @@ struct MainSearchView: View {
                 cityTitle: selectedCityTitle
             )
         }
-    }
-    
-    private func makeAllStationsService() -> AllStationsServiceProtocol {
-        let client = Client(
-            serverURL: raspBaseURL,
-            transport: URLSessionTransport()
-        )
-        return AllStationsService(client: client, apikey: apiKey)
     }
 }
 

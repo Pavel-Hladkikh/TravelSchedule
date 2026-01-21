@@ -1,6 +1,6 @@
 import Foundation
-import Combine
 
+@MainActor
 final class MainSearchViewModel: ObservableObject {
     
     @Published var fromText: String = ""

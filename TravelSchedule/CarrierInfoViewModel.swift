@@ -3,7 +3,7 @@ import Foundation
 @MainActor
 final class CarrierInfoViewModel: ObservableObject {
     
-    struct DataModel: Equatable {
+    struct DataModel: Equatable, Sendable {
         var title: String
         var logoURL: URL?
         var email: String?
@@ -11,74 +11,61 @@ final class CarrierInfoViewModel: ObservableObject {
         var website: String?
     }
     
-    @Published private(set) var state: LoadingState = .loading
-    @Published private(set) var data: DataModel = .init(
-        title: "Перевозчик",
-        logoURL: nil,
-        email: nil,
-        phone: nil,
-        website: nil
-    )
+    @Published private(set) var state: LoadingState = .idle
+    @Published private(set) var data: DataModel
     
     private let carrierCode: String?
-    private let carrierService: CarrierServiceProtocol
-    
-    private var loadTask: Task<Void, Never>?
+    private let apiClient: RaspAPIClient
     
     init(
+        seed: DataModel,
         carrierCode: String?,
-        carrierService: CarrierServiceProtocol
+        apiClient: RaspAPIClient
     ) {
+        self.data = seed
         self.carrierCode = carrierCode
-        self.carrierService = carrierService
-    }
-    
-    deinit {
-        loadTask?.cancel()
+        self.apiClient = apiClient
     }
     
     func load() async {
-        loadTask?.cancel()
+        let code = (carrierCode ?? "")
+            .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
         
-        loadTask = Task {
-            guard let carrierCode, !carrierCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                state = .error("Нет кода перевозчика")
-                return
-            }
-            
-            state = .loading
-            
-            do {
-                let response = try await carrierService.getCarrierInfo(code: carrierCode)
-                guard !Task.isCancelled else { return }
-                
-                let carrier = response.carriers?.first
-                
-                let title = carrier?.title?.trimmingCharacters(in: .whitespacesAndNewlines)
-                let email = carrier?.email?.trimmingCharacters(in: .whitespacesAndNewlines)
-                let phone = carrier?.phone?.trimmingCharacters(in: .whitespacesAndNewlines)
-                let website = carrier?.url?.trimmingCharacters(in: .whitespacesAndNewlines)
-                let logo = carrier?.logo?.trimmingCharacters(in: .whitespacesAndNewlines)
-                
-                data.title = (title?.isEmpty == false) ? title! : "Перевозчик"
-                data.email = (email?.isEmpty == false) ? email : nil
-                data.phone = (phone?.isEmpty == false) ? phone : nil
-                data.website = (website?.isEmpty == false) ? website : nil
-                data.logoURL = (logo?.isEmpty == false) ? URL(string: logo!) : nil
-                
-                state = .loaded
-                
-            } catch {
-                guard !Task.isCancelled else { return }
-                
-                if error.isNoInternet {
-                    state = .noInternet
-                } else {
-                    state = .error("Ошибка загрузки")
-                }
-            }
+        guard !code.isEmpty else {
+            state = .error("Нет кода перевозчика")
+            return
         }
         
-        await loadTask?.value
+        state = .loading
+        
+        do {
+            let response = try await apiClient.carrierInfo(code: code)
+            if Task.isCancelled { return }
+            
+            let carrier = response.carriers?.first
+            
+            let title = carrier?.title?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            let email = carrier?.email?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            let phone = carrier?.phone?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            let website = carrier?.url?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            let logo = carrier?.logo?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            
+            if let title, !title.isEmpty { data.title = title }
+            if let email, !email.isEmpty { data.email = email }
+            if let phone, !phone.isEmpty { data.phone = phone }
+            if let website, !website.isEmpty { data.website = website }
+            if let logo, !logo.isEmpty { data.logoURL = URL(string: logo) }
+            
+            state = .loaded
+            
+        } catch {
+            if Task.isCancelled { return }
+            
+            if error.isNoInternet {
+                state = .noInternet
+            } else {
+                state = .error("Ошибка загрузки")
+            }
+        }
     }
 }

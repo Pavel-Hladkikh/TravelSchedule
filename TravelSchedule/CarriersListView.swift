@@ -1,7 +1,4 @@
 import SwiftUI
-import OpenAPIURLSession
-
-private let raspBaseURL = URL(string: "https://api.rasp.yandex-net.ru")!
 
 struct CarriersListView: View {
     
@@ -20,25 +17,22 @@ struct CarriersListView: View {
     
     @State private var selectedCarrierRow: CarriersListViewModel.CarrierRow? = nil
     
+    private let apiClient: RaspAPIClient
+    
     init(
         fromTitle: String,
         toTitle: String,
         fromCode: String,
         toCode: String,
-        apiKey: String
+        apiClient: RaspAPIClient
     ) {
         self.fromTitle = fromTitle
         self.toTitle = toTitle
-        
-        let client = Client(
-            serverURL: raspBaseURL,
-            transport: URLSessionTransport()
-        )
-        let service = SearchService(client: client, apikey: apiKey)
+        self.apiClient = apiClient
         
         _vm = StateObject(
             wrappedValue: CarriersListViewModel(
-                searchService: service,
+                apiClient: apiClient,
                 fromCode: fromCode,
                 toCode: toCode
             )
@@ -109,7 +103,7 @@ struct CarriersListView: View {
             )
         ) {
             if let row = selectedCarrierRow {
-                CarrierInfo(row: row)
+                CarrierInfo(row: row, apiClient: apiClient)
             }
         }
     }

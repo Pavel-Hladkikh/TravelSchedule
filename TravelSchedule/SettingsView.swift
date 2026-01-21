@@ -2,8 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     
-    @State private var isDark = ThemeService.isDark()
-    @State private var showAgreement = false
+    @StateObject private var vm = SettingsViewModel()
     
     var body: some View {
         VStack(spacing: 0) {
@@ -21,11 +20,11 @@ struct SettingsView: View {
                 .padding(.bottom, 24)
         }
         .background(AppColors.background)
-        .fullScreenCover(isPresented: $showAgreement) {
+        .fullScreenCover(isPresented: $vm.showAgreement) {
             UserAgreementView()
         }
         .onAppear {
-            isDark = ThemeService.isDark()
+            vm.onAppear()
         }
     }
     
@@ -38,21 +37,21 @@ struct SettingsView: View {
             
             Spacer()
             
-            Toggle("", isOn: $isDark)
+            Toggle("", isOn: $vm.isDark)
                 .labelsHidden()
                 .tint(AppColors.brandBlue)
         }
         .frame(height: 60)
         .padding(.horizontal, 16)
         .contentShape(Rectangle())
-        .onChange(of: isDark) { _, value in
-            ThemeService.apply(isDark: value)
+        .onChange(of: vm.isDark) { _, value in
+            vm.setDark(value)
         }
     }
     
     private var agreementRow: some View {
         Button {
-            showAgreement = true
+            vm.openAgreement()
         } label: {
             HStack {
                 Text("Пользовательское соглашение")
@@ -85,7 +84,7 @@ struct SettingsView: View {
             Text("Версия 1.0 (beta)")
                 .font(.system(size: 12, weight: .regular))
                 .tracking(0.4)
-                .foregroundStyle(AppColors.textPrimary) 
+                .foregroundStyle(AppColors.textPrimary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)

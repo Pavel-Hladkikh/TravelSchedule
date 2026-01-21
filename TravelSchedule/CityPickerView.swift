@@ -1,25 +1,18 @@
 import SwiftUI
-import OpenAPIURLSession
-
-private let apiKey = "7828af98-e2dc-45df-95f7-12b6d39376ef"
 
 struct CityPickerView: View {
     
-    let onSelect: (String) -> Void
+    let onSelect: @MainActor (String) -> Void
     
     @Environment(\.dismiss) private var dismiss
     @StateObject private var vm: CityPickerViewModel
     
-    init(onSelect: @escaping (String) -> Void) {
+    init(
+        apiClient: RaspAPIClient,
+        onSelect: @escaping @MainActor (String) -> Void
+    ) {
         self.onSelect = onSelect
-        
-        let client = Client(
-            serverURL: URL(string: "https://api.rasp.yandex-net.ru")!,
-            transport: URLSessionTransport()
-        )
-        
-        let service = AllStationsService(client: client, apikey: apiKey)
-        _vm = StateObject(wrappedValue: CityPickerViewModel(allStationsService: service))
+        _vm = StateObject(wrappedValue: CityPickerViewModel(apiClient: apiClient))
     }
     
     var body: some View {

@@ -2,23 +2,23 @@ import SwiftUI
 import UIKit
 
 enum AppColors {
-
+    
     static var background: Color { dynamic(lightHex: 0xFFFFFF, darkHex: 0x1A1B22) }
     static var textPrimary: Color { dynamic(lightHex: 0x1A1B22, darkHex: 0xFFFFFF) }
     static var tabTint: Color { dynamic(lightHex: 0x000000, darkHex: 0xFFFFFF) }
-
+    
     static let brandBlue = Color(hex: 0x3772E7)
-
+    
     static let cardGray = Color(hex: 0xEEEEEE)
     static let lineGray = Color(hex: 0xAEB0B4)
-
+    
     static let subtitleRed = Color(hex: 0xF56B6C)
     static let indicatorRed = Color(hex: 0xF56B6C)
-
+    
     static var searchFieldBackground: Color {
         dynamic(lightHex: 0xEEEEEE, darkHex: 0x767680, darkAlpha: 0.24)
     }
-
+    
     static var searchPlaceholder: Color {
         Color(uiColor: UIColor { tc in
             tc.userInterfaceStyle == .dark
@@ -26,7 +26,7 @@ enum AppColors {
             : UIColor(hex: 0xAEB0B4)
         })
     }
-
+    
     static func magnifierColor(isActive: Bool) -> Color {
         Color(uiColor: UIColor { tc in
             if tc.userInterfaceStyle == .dark {
@@ -36,9 +36,9 @@ enum AppColors {
             }
         })
     }
-
+    
     static let clearIcon = Color(hex: 0xAEAFB4)
-
+    
     private static func dynamic(lightHex: Int, darkHex: Int, darkAlpha: Double = 1) -> Color {
         Color(uiColor: UIColor { tc in
             if tc.userInterfaceStyle == .dark {

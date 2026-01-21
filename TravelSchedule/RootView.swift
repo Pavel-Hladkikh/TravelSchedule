@@ -1,19 +1,14 @@
 import SwiftUI
 
 struct RootView: View {
-    @State private var showSplash = true
+    @StateObject private var vm = RootViewModel()
     @Environment(\.colorScheme) private var colorScheme
-
+    
     var body: some View {
         ZStack {
             Group {
-                if showSplash {
+                if vm.showSplash {
                     SplashView()
-                        .onAppear {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                                showSplash = false
-                            }
-                        }
                 } else {
                     TabView {
                         MainSearchView()
@@ -24,7 +19,7 @@ struct RootView: View {
                                     .scaledToFit()
                                     .frame(width: 30, height: 30)
                             }
-
+                        
                         SettingsView()
                             .tabItem {
                                 Image("setting")
@@ -45,6 +40,9 @@ struct RootView: View {
                     }
                 }
             }
+        }
+        .task {
+            await vm.startSplashIfNeeded()
         }
     }
 }

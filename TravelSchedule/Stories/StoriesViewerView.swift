@@ -67,6 +67,8 @@ struct StoriesViewerView: View {
         }
         .onAppear {
             if !hasAppeared {
+                isInitialSetup = (initialStoryIndex != 0)
+                
                 currentStoryIndex = initialStoryIndex
                 currentPageIndex = 0
                 pageProgress = 0
@@ -179,7 +181,7 @@ private struct StoryCard: View {
     
     var body: some View {
         GeometryReader { geo in
-            let contentWidth = geo.size.width - 32 
+            let contentWidth = geo.size.width - 32
             
             ZStack {
                 Image(imageName)
@@ -234,7 +236,6 @@ private struct StoryCard: View {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
             )
         }
-        
     }
 }
 

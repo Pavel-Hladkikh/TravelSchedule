@@ -10,14 +10,10 @@ final class CityPickerViewModel: ObservableObject {
     
     private var allCities: [String] = []
     private var cancellables = Set<AnyCancellable>()
-    private let allStationsService: AllStationsServiceProtocol
+    private let apiClient: RaspAPIClient
     
-    private var loadTask: Task<Void, Never>?
-    private var retryTimer: Timer?
-    private var retryCount = 0
-    
-    init(allStationsService: AllStationsServiceProtocol) {
-        self.allStationsService = allStationsService
+    init(apiClient: RaspAPIClient) {
+        self.apiClient = apiClient
         
         $query
             .debounce(for: .milliseconds(150), scheduler: RunLoop.main)
@@ -28,26 +24,16 @@ final class CityPickerViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    deinit {
-        loadTask?.cancel()
-        retryTimer?.invalidate()
-    }
-    
     func load() async {
-        loadTask?.cancel()
-        stopRetryTimer()
+        state = .loading
+        filteredCities = []
         
-        loadTask = Task {
-            state = .loading
-            filteredCities = []
-            
+        var retryCount = 0
+        
+        while !Task.isCancelled {
             do {
-                let response = try await allStationsService.getAllStations(
-                    lang: "ru_RU",
-                    format: "json"
-                )
-                
-                guard !Task.isCancelled else { return }
+                let response = try await apiClient.allStations(lang: "ru_RU", format: "json")
+                if Task.isCancelled { return }
                 
                 let cities = extractRussianCities(from: response)
                 allCities = Array(Set(cities)).sorted()
@@ -59,24 +45,26 @@ final class CityPickerViewModel: ObservableObject {
                     filteredCities = allCities
                     state = .loaded
                 }
+                return
                 
-                retryCount = 0
             } catch {
-                guard !Task.isCancelled else { return }
-                
-                allCities = []
-                filteredCities = []
+                if Task.isCancelled { return }
                 
                 if error.isNoInternet {
                     state = .noInternet
-                    startRetryTimer()
+                    let delaySec = min(pow(2.0, Double(retryCount)), 10.0)
+                    retryCount += 1
+                    let ns = UInt64(delaySec * 1_000_000_000)
+                    try? await Task.sleep(nanoseconds: ns)
+                    continue
                 } else {
+                    allCities = []
+                    filteredCities = []
                     state = .error("Ошибка загрузки")
+                    return
                 }
             }
         }
-        
-        await loadTask?.value
     }
     
     private func applyFilter() {
@@ -89,7 +77,7 @@ final class CityPickerViewModel: ObservableObject {
             return
         }
         
-        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let q = query.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
         
         if q.isEmpty {
             filteredCities = allCities
@@ -97,39 +85,12 @@ final class CityPickerViewModel: ObservableObject {
             return
         }
         
-        let result = allCities.filter {
-            $0.localizedCaseInsensitiveContains(q)
-        }
-        
+        let result = allCities.filter { $0.localizedCaseInsensitiveContains(q) }
         filteredCities = result
         state = result.isEmpty ? .empty("Город не найден") : .loaded
     }
     
-    private func startRetryTimer() {
-        stopRetryTimer()
-        
-        let delay = min(pow(2.0, Double(retryCount)), 10.0)
-        retryCount += 1
-        
-        retryTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
-            guard let self else { return }
-            
-            Task { @MainActor in
-                if self.state == .noInternet {
-                    await self.load()
-                } else {
-                    self.stopRetryTimer()
-                }
-            }
-        }
-    }
-    
-    private func stopRetryTimer() {
-        retryTimer?.invalidate()
-        retryTimer = nil
-    }
-    
-    private func extractRussianCities(from response: AllStationsResponse) -> [String] {
+    private func extractRussianCities(from response: Components.Schemas.AllStationsResponse) -> [String] {
         let countries = response.countries ?? []
         
         let russia =
@@ -151,7 +112,7 @@ final class CityPickerViewModel: ObservableObject {
         ?? []
         
         return raw
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .map { $0.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
     }
 }
