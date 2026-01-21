@@ -1,7 +1,6 @@
 import SwiftUI
 
-// Фильтр по времени
-enum DepartureInterval: CaseIterable, Hashable {
+enum DepartureInterval: CaseIterable, Hashable, Sendable {
     case morning
     case day
     case evening
@@ -16,7 +15,6 @@ enum DepartureInterval: CaseIterable, Hashable {
         }
     }
     
-    // минуты от начала суток
     var range: ClosedRange<Int> {
         switch self {
         case .morning: return 6 * 60 ... 11 * 60 + 59
@@ -34,12 +32,12 @@ struct FiltersView: View {
     @State private var timeSelection: Set<DepartureInterval>
     @State private var showTransfers: Bool?
     
-    private let onApply: (Set<DepartureInterval>, Bool?) -> Void
+    private let onApply: @MainActor (Set<DepartureInterval>, Bool?) -> Void
     
     init(
         timeSelection: Set<DepartureInterval>,
         showTransfers: Bool?,
-        onApply: @escaping (Set<DepartureInterval>, Bool?) -> Void
+        onApply: @escaping @MainActor (Set<DepartureInterval>, Bool?) -> Void
     ) {
         _timeSelection = State(initialValue: timeSelection)
         _showTransfers = State(initialValue: showTransfers)
@@ -53,7 +51,6 @@ struct FiltersView: View {
     var body: some View {
         VStack(spacing: 0) {
             
-            // топбар как у тебя
             HStack(spacing: 0) {
                 Button { dismiss() } label: {
                     Image(systemName: "chevron.left")
@@ -111,7 +108,6 @@ struct FiltersView: View {
         .background(AppColors.background)
         .toolbar(.hidden, for: .navigationBar)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            // кнопка только когда выбран и интервал и да/нет
             if canApply {
                 Button {
                     onApply(timeSelection, showTransfers)
@@ -129,7 +125,6 @@ struct FiltersView: View {
                 .padding(.bottom, 24)
                 .background(AppColors.background)
             } else {
-                // чтобы низ не прыгал
                 AppColors.background.frame(height: 24)
             }
         }

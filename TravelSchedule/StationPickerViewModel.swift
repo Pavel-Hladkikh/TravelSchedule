@@ -3,31 +3,27 @@ import Combine
 
 @MainActor
 final class StationPickerViewModel: ObservableObject {
-
-    struct StationItem: Identifiable, Hashable {
+    
+    struct StationItem: Identifiable, Hashable, Sendable {
         let id: String
         let title: String
         let code: String
     }
-
+    
     @Published var query: String = ""
     @Published private(set) var state: LoadingState = .loading
     @Published private(set) var filteredStations: [StationItem] = []
-
+    
     private var allStations: [StationItem] = []
     private var cancellables = Set<AnyCancellable>()
-
+    
     private let cityTitle: String
-    private let allStationsService: AllStationsServiceProtocol
-
-    private var loadTask: Task<Void, Never>?
-    private var retryTimer: Timer?
-    private var retryCount = 0
-
-    init(cityTitle: String, allStationsService: AllStationsServiceProtocol) {
+    private let apiClient: RaspAPIClient
+    
+    init(cityTitle: String, apiClient: RaspAPIClient) {
         self.cityTitle = cityTitle
-        self.allStationsService = allStationsService
-
+        self.apiClient = apiClient
+        
         $query
             .debounce(for: .milliseconds(150), scheduler: RunLoop.main)
             .removeDuplicates()
@@ -36,84 +32,48 @@ final class StationPickerViewModel: ObservableObject {
             }
             .store(in: &cancellables)
     }
-
-    deinit {
-        loadTask?.cancel()
-        retryTimer?.invalidate()
-    }
-
+    
     func load() async {
-        loadTask?.cancel()
-        stopRetryTimer()
-
-        loadTask = Task {
-            state = .loading
-
+        state = .loading
+        filteredStations = []
+        
+        var retryCount = 0
+        
+        while !Task.isCancelled {
             do {
-                let response = try await allStationsService.getAllStations(
-                    lang: "ru_RU",
-                    format: "json"
-                )
-
-                guard !Task.isCancelled else { return }
-
-                let stations = extractStationsForCity(
-                    from: response,
-                    cityTitle: cityTitle
-                )
-                allStations = stations
-
+                let response = try await apiClient.allStations(lang: "ru_RU", format: "json")
+                if Task.isCancelled { return }
+                
+                allStations = extractStationsForCity(from: response, cityTitle: cityTitle)
+                
                 if allStations.isEmpty {
                     state = .empty("Станции не найдены")
                     filteredStations = []
                 } else {
                     state = .loaded
-                    retryCount = 0
                     applyFilter()
                 }
+                return
+                
             } catch {
-                guard !Task.isCancelled else { return }
-
+                if Task.isCancelled { return }
+                
                 if error.isNoInternet {
                     state = .noInternet
-                    startRetryTimer()
+                    let delaySec = min(pow(2.0, Double(retryCount)), 10.0)
+                    retryCount += 1
+                    let ns = UInt64(delaySec * 1_000_000_000)
+                    try? await Task.sleep(nanoseconds: ns)
+                    continue
                 } else {
                     state = .error("Не удалось загрузить список станций")
-                }
-                filteredStations = []
-            }
-        }
-
-        await loadTask?.value
-    }
-
-    private func startRetryTimer() {
-        stopRetryTimer()
-
-        let delay = min(pow(2.0, Double(retryCount)), 10.0)
-        retryCount += 1
-
-        retryTimer = Timer.scheduledTimer(
-            withTimeInterval: delay,
-            repeats: false
-        ) { [weak self] _ in
-            guard let self else { return }
-
-            Task { @MainActor in
-                if self.state == .noInternet {
-                    await self.load()
-                } else {
-                    self.stopRetryTimer()
+                    filteredStations = []
+                    return
                 }
             }
         }
     }
-
-    private func stopRetryTimer() {
-        retryTimer?.invalidate()
-        retryTimer = nil
-    }
-
+    
     private func applyFilter() {
         switch state {
         case .loading, .noInternet, .error:
@@ -121,29 +81,22 @@ final class StationPickerViewModel: ObservableObject {
         case .loaded, .empty, .idle:
             break
         }
-
-        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
-
+        
+        let q = query.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+        
         if q.isEmpty {
             filteredStations = allStations
-            state = allStations.isEmpty
-                ? .empty("Станции не найдены")
-                : .loaded
+            state = allStations.isEmpty ? .empty("Станции не найдены") : .loaded
             return
         }
-
-        let result = allStations.filter {
-            $0.title.localizedCaseInsensitiveContains(q)
-        }
-
+        
+        let result = allStations.filter { $0.title.localizedCaseInsensitiveContains(q) }
         filteredStations = result
-        state = result.isEmpty
-            ? .empty("Станция не найдена")
-            : .loaded
+        state = result.isEmpty ? .empty("Станция не найдена") : .loaded
     }
-
+    
     private func extractStationsForCity(
-        from response: AllStationsResponse,
+        from response: Components.Schemas.AllStationsResponse,
         cityTitle: String
     ) -> [StationItem] {
         let countries = response.countries ?? []
@@ -152,29 +105,20 @@ final class StationPickerViewModel: ObservableObject {
         let settlements = regions.flatMap { $0.settlements ?? [] }
         let city = settlements.first { ($0.title ?? "") == cityTitle }
         let stations = city?.stations ?? []
-
+        
         let mapped: [StationItem] = stations.compactMap { station in
             let code = (station.codes?.yandex_code ?? station.code ?? "")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-
-            let rawTitle =
-                station.popular_title ??
-                station.title ??
-                station.short_title ??
-                ""
-
-            let title = rawTitle
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-
+                .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            
+            let rawTitle = station.popular_title ?? station.title ?? station.short_title ?? ""
+            let title = rawTitle.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            
             guard !code.isEmpty, !title.isEmpty else { return nil }
             if title.hasPrefix("#") { return nil }
-
+            
             return StationItem(id: code, title: title, code: code)
         }
-
-        let unique = Array(Set(mapped))
-            .sorted { $0.title < $1.title }
-
-        return unique
+        
+        return Array(Set(mapped)).sorted { $0.title < $1.title }
     }
 }

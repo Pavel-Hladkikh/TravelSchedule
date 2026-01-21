@@ -6,6 +6,30 @@ struct CarrierInfo: View {
     @Environment(\.dismiss) private var dismiss
     
     let row: CarriersListViewModel.CarrierRow
+    @StateObject private var vm: CarrierInfoViewModel
+    
+    init(
+        row: CarriersListViewModel.CarrierRow,
+        apiClient: RaspAPIClient = RaspAPI.shared
+    ) {
+        self.row = row
+        
+        let seed = CarrierInfoViewModel.DataModel(
+            title: row.title,
+            logoURL: row.logoURL,
+            email: row.email,
+            phone: row.phone,
+            website: row.website
+        )
+        
+        _vm = StateObject(
+            wrappedValue: CarrierInfoViewModel(
+                seed: seed,
+                carrierCode: row.carrierCode,
+                apiClient: apiClient
+            )
+        )
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -26,7 +50,7 @@ struct CarrierInfo: View {
                     Color.clear
                         .frame(height: 16)
                     
-                    Text(row.title)
+                    Text(vm.data.title)
                         .font(.system(size: 24, weight: .bold))
                         .foregroundStyle(AppColors.textPrimary)
                         .padding(.horizontal, 16)
@@ -34,14 +58,15 @@ struct CarrierInfo: View {
                     Color.clear
                         .frame(height: 16)
                     
-                    infoRowEmail(title: "E-mail", value: row.email)
+                    infoRowEmail(title: "E-mail", value: vm.data.email)
                     
-                    infoRowPhone(title: "Телефон", value: row.phone)
+                    infoRowPhone(title: "Телефон", value: vm.data.phone)
                 }
             }
         }
         .background(AppColors.background)
         .ignoresSafeArea(edges: .bottom)
+        .task { await vm.load() }
     }
     
     private var header: some View {
@@ -72,7 +97,7 @@ struct CarrierInfo: View {
             RoundedRectangle(cornerRadius: 20)
                 .fill(Color.white)
             
-            logoView(row.logoURL)
+            logoView(vm.data.logoURL)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
         }
@@ -93,7 +118,7 @@ struct CarrierInfo: View {
     
     private func infoRowPhone(title: String, value: String?) -> some View {
         rowBase(title: title, value: value, onTap: {
-            guard let raw = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+            guard let raw = value?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines),
                   !raw.isEmpty else { return }
             
             let digits = raw.filter { $0.isNumber || $0 == "+" }
@@ -134,7 +159,7 @@ struct CarrierInfo: View {
     }
     
     private func parseEmails(_ value: String?) -> [String] {
-        guard var raw = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+        guard var raw = value?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines),
               !raw.isEmpty else { return [] }
         
         if raw.lowercased().hasPrefix("mailto:") {
@@ -143,7 +168,7 @@ struct CarrierInfo: View {
         
         return raw
             .split { $0 == "," || $0 == ";" || $0.isNewline }
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .map { $0.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) }
             .filter { !$0.isEmpty && $0.contains("@") }
     }
     

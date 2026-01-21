@@ -7,7 +7,7 @@ enum LoadingState: Equatable {
     case empty(String)
     case noInternet
     case error(String)
-
+    
     static func == (lhs: LoadingState, rhs: LoadingState) -> Bool {
         switch (lhs, rhs) {
         case (.idle, .idle), (.loading, .loading), (.loaded, .loaded), (.noInternet, .noInternet):
@@ -26,7 +26,7 @@ struct StateContentView<Content: View>: View {
     let state: LoadingState
     let emptyMessage: String
     @ViewBuilder let content: () -> Content
-
+    
     init(
         state: LoadingState,
         emptyMessage: String = "Ничего не найдено",
@@ -36,12 +36,12 @@ struct StateContentView<Content: View>: View {
         self.emptyMessage = emptyMessage
         self.content = content
     }
-
+    
     var body: some View {
         switch state {
         case .idle:
             Color.clear
-
+            
         case .loading:
             VStack {
                 Spacer()
@@ -49,10 +49,10 @@ struct StateContentView<Content: View>: View {
                 Spacer()
             }
             .frame(maxWidth: .infinity)
-
+            
         case .loaded:
             content()
-
+            
         case .empty:
             VStack {
                 Spacer()
@@ -62,7 +62,7 @@ struct StateContentView<Content: View>: View {
                 Spacer()
             }
             .frame(maxWidth: .infinity)
-
+            
         case .noInternet:
             VStack {
                 Spacer()
@@ -70,7 +70,7 @@ struct StateContentView<Content: View>: View {
                 Spacer()
             }
             .frame(maxWidth: .infinity)
-
+            
         case .error:
             VStack {
                 Spacer()
@@ -95,15 +95,15 @@ extension Error {
             "the network connection was lost",
             "the request timed out"
         ]
-
+        
         for phrase in networkPhrases {
             if errorDescription.contains(phrase) {
                 return true
             }
         }
-
+        
         let ns = self as NSError
-
+        
         if ns.domain == NSURLErrorDomain {
             let networkErrorCodes = [
                 NSURLErrorNotConnectedToInternet,
@@ -115,28 +115,28 @@ extension Error {
                 NSURLErrorDataNotAllowed,
                 NSURLErrorTimedOut
             ]
-
+            
             if networkErrorCodes.contains(ns.code) {
                 return true
             }
         }
-
+        
         if ns.domain == "kCFErrorDomainCFNetwork" {
             return true
         }
-
+        
         if ns.domain == "NSPOSIXErrorDomain" {
             return true
         }
-
+        
         if let underlying = ns.userInfo[NSUnderlyingErrorKey] as? NSError {
             return underlying.isNoInternet
         }
-
+        
         if let underlying = ns.userInfo["NSUnderlyingError"] as? NSError {
             return underlying.isNoInternet
         }
-
+        
         return false
     }
 }

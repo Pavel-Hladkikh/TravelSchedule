@@ -3,7 +3,7 @@ import Foundation
 @MainActor
 final class CarriersListViewModel: ObservableObject {
     
-    struct CarrierRow: Identifiable, Hashable {
+    struct CarrierRow: Identifiable, Hashable, Sendable {
         let id: String
         
         let title: String
@@ -22,12 +22,14 @@ final class CarriersListViewModel: ObservableObject {
         
         let departMinutes: Int?
         let hasTransfers: Bool
+        
+        let carrierCode: String?
     }
     
     @Published private(set) var state: LoadingState = .loading
     @Published private(set) var rows: [CarrierRow] = []
     
-    private let searchService: SearchServiceProtocol
+    private let apiClient: RaspAPIClient
     private let fromCode: String
     private let toCode: String
     
@@ -35,58 +37,55 @@ final class CarriersListViewModel: ObservableObject {
     private var currentTimeSelection: Set<DepartureInterval> = []
     private var currentShowTransfers: Bool? = nil
     
-    private var loadTask: Task<Void, Never>?
-    private var retryTimer: Timer?
-    private var retryCount = 0
-    
-    init(searchService: SearchServiceProtocol, fromCode: String, toCode: String) {
-        self.searchService = searchService
+    init(apiClient: RaspAPIClient, fromCode: String, toCode: String) {
+        self.apiClient = apiClient
         self.fromCode = fromCode
         self.toCode = toCode
     }
     
-    deinit {
-        loadTask?.cancel()
-        retryTimer?.invalidate()
-    }
-    
     func load() async {
-        loadTask?.cancel()
-        stopRetryTimer()
+        state = .loading
         
-        loadTask = Task {
-            state = .loading
-            
+        var retryCount = 0
+        
+        while !Task.isCancelled {
             do {
                 let date = todayYYYYMMDD()
-                let response = try await searchService.getSegments(
+                
+                let response = try await apiClient.searchSegments(
                     from: fromCode,
                     to: toCode,
-                    date: date
+                    date: date,
+                    transfers: nil,
+                    lang: "ru_RU",
+                    format: "json"
                 )
                 
-                guard !Task.isCancelled else { return }
+                if Task.isCancelled { return }
                 
                 allRows = mapToRows(response)
-                retryCount = 0
                 applyCurrentFiltersAndPublish()
+                return
                 
             } catch {
-                guard !Task.isCancelled else { return }
+                if Task.isCancelled { return }
                 
                 allRows = []
                 rows = []
                 
                 if error.isNoInternet {
                     state = .noInternet
-                    startRetryTimer()
+                    let delaySec = min(pow(2.0, Double(retryCount)), 10.0)
+                    retryCount += 1
+                    let ns = UInt64(delaySec * 1_000_000_000)
+                    try? await Task.sleep(nanoseconds: ns)
+                    continue
                 } else {
                     state = .error("Ошибка загрузки")
+                    return
                 }
             }
         }
-        
-        await loadTask?.value
     }
     
     func applyFilters(timeSelection: Set<DepartureInterval>, showTransfers: Bool?) {
@@ -119,7 +118,6 @@ final class CarriersListViewModel: ObservableObject {
         if let showTransfers = currentShowTransfers {
             if showTransfers == false {
                 result = result.filter { !$0.hasTransfers }
-            } else {
             }
         }
         
@@ -170,6 +168,13 @@ final class CarriersListViewModel: ObservableObject {
             
             let departMinutes = seg.departure.map { minutesFromMidnight($0) }
             
+            let carrierCode: String? = {
+                if let codeInt = carrier?.code {
+                    return String(codeInt)
+                }
+                return nil
+            }()
+            
             result.append(
                 CarrierRow(
                     id: id,
@@ -184,7 +189,8 @@ final class CarriersListViewModel: ObservableObject {
                     phone: (phone?.isEmpty == true) ? nil : phone,
                     website: (website?.isEmpty == true) ? nil : website,
                     departMinutes: departMinutes,
-                    hasTransfers: hasTransfers
+                    hasTransfers: hasTransfers,
+                    carrierCode: carrierCode
                 )
             )
         }
@@ -229,29 +235,5 @@ final class CarriersListViewModel: ObservableObject {
         if h > 0 && m > 0 { return "\(h) ч \(m) м" }
         if h > 0 { return "\(h) ч" }
         return "\(m) м"
-    }
-    
-    private func startRetryTimer() {
-        stopRetryTimer()
-        
-        let delay = min(pow(2.0, Double(retryCount)), 10.0)
-        retryCount += 1
-        
-        retryTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
-            guard let self else { return }
-            
-            Task { @MainActor in
-                if self.state == .noInternet {
-                    await self.load()
-                } else {
-                    self.stopRetryTimer()
-                }
-            }
-        }
-    }
-    
-    private func stopRetryTimer() {
-        retryTimer?.invalidate()
-        retryTimer = nil
     }
 }

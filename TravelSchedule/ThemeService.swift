@@ -1,5 +1,6 @@
 import UIKit
 
+@MainActor
 enum ThemeService {
     
     private static let key = "isDarkTheme"
